@@ -182,23 +182,31 @@ export class BuildingManager {
      */
     isValidBuildLocation(type, position, player) {
         const buildingType = this.buildingTypes[type];
-        if (!buildingType) return false;
+        if (!buildingType) {
+            console.error(`Unknown building type: ${type}`);
+            return false;
+        }
 
+        // Convert world position to grid coordinates
         const gridPos = this.game.mapManager.worldToGrid(position);
+        console.log(`Checking build location for ${type} at grid position: x=${gridPos.x}, z=${gridPos.z}`);
+
+        // Calculate half the width and depth of the building
         const halfWidth = Math.floor(buildingType.width / 2);
         const halfDepth = Math.floor(buildingType.depth / 2);
 
-        // Check if all cells are buildable
+        // Check if all cells in the building's footprint are buildable
         for (let x = gridPos.x - halfWidth; x <= gridPos.x + halfWidth; x++) {
             for (let z = gridPos.z - halfDepth; z <= gridPos.z + halfDepth; z++) {
-                // Make sure we're in bounds
-                if (x < 0 || x >= this.game.mapManager.gridWidth ||
-                    z < 0 || z >= this.game.mapManager.gridHeight) {
+                // Check bounds
+                if (x < 0 || x >= this.game.mapManager.gridWidth || z < 0 || z >= this.game.mapManager.gridHeight) {
+                    console.log(`Position out of bounds: x=${x}, z=${z}`);
                     return false;
                 }
 
-                // Check if cell is buildable
+                // Check if the cell is buildable
                 if (!this.game.mapManager.isBuildable(x, z)) {
+                    console.log(`Cell not buildable at: x=${x}, z=${z}`);
                     return false;
                 }
             }

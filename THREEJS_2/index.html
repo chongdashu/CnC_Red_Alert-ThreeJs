@@ -45,15 +45,34 @@
         font-family: "Courier New", monospace;
         font-weight: bold;
       }
-      .unit-button {
+      .unit-button,
+      .building-button {
         width: 40px;
         height: 40px;
         background-color: #555;
         border: 2px solid #888;
         margin: 0 5px;
         cursor: pointer;
+        color: white;
+        font-weight: bold;
       }
-      .unit-button:hover {
+      .unit-button:hover,
+      .building-button:hover {
+        border-color: yellow;
+      }
+      #action-buttons {
+        display: none;
+        margin-left: 20px;
+      }
+      .action-button {
+        padding: 5px 10px;
+        background-color: #555;
+        border: 2px solid #888;
+        color: white;
+        cursor: pointer;
+        margin-right: 10px;
+      }
+      .action-button:hover {
         border-color: yellow;
       }
     </style>
@@ -67,6 +86,17 @@
         <button class="unit-button" data-unit="harvester">HARV</button>
         <button class="unit-button" data-unit="tank">TANK</button>
         <button class="unit-button" data-unit="apc">APC</button>
+
+        <button class="building-button" data-building="power_plant">PWR</button>
+        <button class="building-button" data-building="barracks">BAR</button>
+        <button class="building-button" data-building="refinery">REF</button>
+        <button class="building-button" data-building="war_factory">FAC</button>
+        <button class="building-button" data-building="defensive_turret">
+          DEF
+        </button>
+      </div>
+      <div id="action-buttons">
+        <button class="action-button" id="deploy-button">Deploy</button>
       </div>
       <div id="status">Ready</div>
     </div>

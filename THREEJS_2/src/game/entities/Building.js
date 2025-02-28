@@ -267,7 +267,12 @@ export class Building {
         const hasPower = this.player.hasSufficientPower();
 
         // Slower production if low power
-        const productionRate = hasPower ? 1 : 0.5;
+        let productionRate = hasPower ? 1 : 0.5;
+
+        // Apply debug speed multiplier if fast construction mode is enabled
+        if (this.game.inputManager.debugMode.fastConstruction) {
+            productionRate *= this.game.inputManager.debugMode.speedMultiplier;
+        }
 
         // Update progress
         this.productionProgress += delta * productionRate;
@@ -372,7 +377,12 @@ export class Building {
 
         // Construction is faster with more power
         const hasPower = this.player.hasSufficientPower();
-        const constructionRate = hasPower ? 0.2 : 0.1;
+        let constructionRate = hasPower ? 0.2 : 0.1;
+
+        // Apply debug speed multiplier if fast construction mode is enabled
+        if (this.game.inputManager.debugMode.fastConstruction) {
+            constructionRate *= this.game.inputManager.debugMode.speedMultiplier;
+        }
 
         // Update progress
         this.constructionProgress += delta * constructionRate;

@@ -16,6 +16,8 @@ export class UIManager {
         this.statusDisplay = null;
         this.minimapDisplay = null;
         this.unitProduction = null;
+        this.actionButtons = null;
+        this.deployButton = null;
 
         // Current selection info
         this.selectedEntity = null;
@@ -37,9 +39,195 @@ export class UIManager {
         this.statusDisplay = document.getElementById('status');
         this.minimapDisplay = document.getElementById('minimap');
         this.unitProduction = document.getElementById('unit-production');
+        this.actionButtons = document.getElementById('action-buttons');
+        this.deployButton = document.getElementById('deploy-button');
+
+        // Hide all production buttons by default
+        const unitButtons = document.querySelectorAll('.unit-button');
+        unitButtons.forEach(button => {
+            button.style.display = 'none';
+        });
+
+        // Hide all building buttons by default
+        const buildingButtons = document.querySelectorAll('.building-button');
+        buildingButtons.forEach(button => {
+            button.style.display = 'none';
+        });
 
         // Initialize minimap
         this.initMinimap();
+
+        // Set up action button handlers
+        this.setupActionButtons();
+
+        // Set up building button handlers
+        this.setupBuildingButtons();
+    }
+
+    /**
+     * Set up action button event handlers
+     */
+    setupActionButtons() {
+        if (this.deployButton) {
+            this.deployButton.addEventListener('click', () => {
+                if (this.selectedEntity && this.selectedEntity.type === 'mcv') {
+                    this.deployMCV(this.selectedEntity);
+                }
+            });
+        }
+    }
+
+    /**
+     * Set up building button event handlers
+     */
+    setupBuildingButtons() {
+        const buildingButtons = document.querySelectorAll('.building-button');
+        buildingButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                const buildingType = button.dataset.building;
+                if (this.selectedEntity && this.selectedEntity.buildOptions &&
+                    this.selectedEntity.buildOptions.includes(buildingType)) {
+                    this.handleBuildingConstruction(buildingType);
+                }
+            });
+        });
+    }
+
+    /**
+     * Deploy an MCV to create a construction yard
+     * @param {Object} mcv - The MCV unit to deploy
+     */
+    deployMCV(mcv) {
+        // Use the unit's deploy method
+        const success = mcv.deploy();
+
+        if (success) {
+            // Update status
+            this.statusDisplay.textContent = 'Construction Yard deployed';
+        } else {
+            // Update status with error
+            this.statusDisplay.textContent = 'Cannot deploy here - invalid location';
+        }
+    }
+
+    /**
+     * Handle building construction request
+     * @param {string} buildingType - Type of building to construct
+     */
+    handleBuildingConstruction(buildingType) {
+        if (!this.selectedEntity || !this.selectedEntity.buildOptions) return;
+
+        // Check if player has enough credits
+        const buildingData = this.game.buildingManager.buildingTypes[buildingType];
+        if (!buildingData) return;
+
+        const cost = buildingData.cost;
+        if (this.game.currentPlayer.credits < cost) {
+            this.statusDisplay.textContent = `Not enough credits to build ${buildingData.name}`;
+            return;
+        }
+
+        // Disable the button temporarily to prevent multiple clicks
+        const button = document.querySelector(`.building-button[data-building="${buildingType}"]`);
+        if (button) {
+            button.disabled = true;
+            button.style.opacity = '0.5';
+
+            // Re-enable after a short delay
+            setTimeout(() => {
+                button.disabled = false;
+                button.style.opacity = '1';
+            }, 2000);
+        }
+
+        // Start building placement mode
+        this.statusDisplay.textContent = `Placing ${buildingData.name}...`;
+
+        // Try to find a valid position for the building
+        let building = null;
+        const basePosition = this.selectedEntity.position.clone();
+
+        // Define possible offsets to try (in a more comprehensive pattern around the construction yard)
+        // Create a wider range of offsets with smaller increments
+        const offsets = [];
+
+        // Add cardinal directions at various distances
+        for (let distance = 4; distance <= 12; distance += 2) {
+            offsets.push({ x: distance, z: 0 });     // Right
+            offsets.push({ x: 0, z: distance });     // Down
+            offsets.push({ x: -distance, z: 0 });    // Left
+            offsets.push({ x: 0, z: -distance });    // Up
+        }
+
+        // Add diagonal directions at various distances
+        for (let distance = 4; distance <= 10; distance += 2) {
+            offsets.push({ x: distance, z: distance });       // Down-Right
+            offsets.push({ x: -distance, z: distance });      // Down-Left
+            offsets.push({ x: -distance, z: -distance });     // Up-Left
+            offsets.push({ x: distance, z: -distance });      // Up-Right
+        }
+
+        // Add some offset variations
+        offsets.push({ x: 6, z: 3 });
+        offsets.push({ x: 3, z: 6 });
+        offsets.push({ x: -6, z: 3 });
+        offsets.push({ x: -3, z: 6 });
+        offsets.push({ x: -6, z: -3 });
+        offsets.push({ x: -3, z: -6 });
+        offsets.push({ x: 6, z: -3 });
+        offsets.push({ x: 3, z: -6 });
+
+        console.log(`Attempting to place ${buildingType} - trying ${offsets.length} different positions`);
+
+        // Try each position until we find a valid one
+        for (const offset of offsets) {
+            const position = basePosition.clone();
+            position.x += offset.x;
+            position.z += offset.z;
+
+            // Log the attempt
+            console.log(`Trying to place ${buildingType} at position: x=${position.x.toFixed(1)}, z=${position.z.toFixed(1)}`);
+
+            // Try to create the building at this position
+            building = this.game.buildingManager.createBuilding(buildingType, position, this.game.currentPlayer);
+
+            if (building) {
+                console.log(`Successfully placed ${buildingType} at position: x=${position.x.toFixed(1)}, z=${position.z.toFixed(1)}`);
+                break; // We found a valid position, stop trying
+            }
+        }
+
+        if (building) {
+            // Deduct cost
+            this.game.currentPlayer.removeCredits(cost);
+
+            // Update status with success message
+            this.statusDisplay.textContent = `Building ${buildingData.name} - Construction started`;
+
+            // Flash the status message to make it more noticeable
+            this.flashStatusMessage();
+
+            // Select the new building
+            this.game.selectEntity(building);
+        } else {
+            this.statusDisplay.textContent = `Cannot build ${buildingData.name} - No valid location found. Try clearing more space around the Construction Yard.`;
+            console.error(`Failed to place ${buildingType} - tried ${offsets.length} different positions`);
+        }
+    }
+
+    /**
+     * Flash the status message to make it more noticeable
+     */
+    flashStatusMessage() {
+        const originalColor = this.statusDisplay.style.color || 'white';
+
+        // Flash yellow
+        this.statusDisplay.style.color = 'yellow';
+
+        // Return to original color after a delay
+        setTimeout(() => {
+            this.statusDisplay.style.color = originalColor;
+        }, 1000);
     }
 
     /**
@@ -115,6 +303,17 @@ export class UIManager {
             button.style.display = 'none';
         });
 
+        // Hide all building buttons by default
+        const buildingButtons = document.querySelectorAll('.building-button');
+        buildingButtons.forEach(button => {
+            button.style.display = 'none';
+        });
+
+        // Hide action buttons by default
+        if (this.actionButtons) {
+            this.actionButtons.style.display = 'none';
+        }
+
         // Single entity selection
         if (entity) {
             this.selectedEntity = entity;
@@ -157,6 +356,11 @@ export class UIManager {
             // Show relevant command buttons
             if (entity.type === 'mcv' && entity.unitData.canDeploy) {
                 this.statusDisplay.textContent = `${infoText} - Ready to deploy`;
+
+                // Show deploy button
+                if (this.actionButtons && this.deployButton) {
+                    this.actionButtons.style.display = 'block';
+                }
             } else if (entity.type === 'harvester') {
                 this.statusDisplay.textContent = `${infoText} - Cargo: ${Math.floor(entity.cargo)}/${entity.maxCargo}`;
             } else {
@@ -181,11 +385,20 @@ export class UIManager {
             else if (entity.buildOptions && entity.buildOptions.length > 0) {
                 this.statusDisplay.textContent = infoText;
 
+                console.log("Building has build options:", entity.buildOptions);
+
                 // Show relevant build buttons
                 entity.buildOptions.forEach(option => {
-                    const button = document.querySelector(`.unit-button[data-unit="${option}"]`);
-                    if (button) {
-                        button.style.display = 'inline-block';
+                    // Check if it's a unit or building option
+                    const unitButton = document.querySelector(`.unit-button[data-unit="${option}"]`);
+                    const buildingButton = document.querySelector(`.building-button[data-building="${option}"]`);
+
+                    if (unitButton) {
+                        unitButton.style.display = 'inline-block';
+                    } else if (buildingButton) {
+                        buildingButton.style.display = 'inline-block';
+                    } else {
+                        console.log(`Button for ${option} not found`);
                     }
                 });
             } else {

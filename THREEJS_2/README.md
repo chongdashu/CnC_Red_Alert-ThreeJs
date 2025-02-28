@@ -45,6 +45,7 @@ Then open your browser to `http://localhost:5173/` to play the game.
 - **Click + Drag**: Box select multiple units
 - **ESC**: Deselect all
 - **DELETE**: Sell/destroy selected building or unit
+- **F**: Toggle fast construction mode (10x speed) for debugging
 
 ## Game Mechanics
 

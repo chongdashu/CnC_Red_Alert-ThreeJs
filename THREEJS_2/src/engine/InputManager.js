@@ -18,6 +18,13 @@ export class InputManager {
         this.dragStart = new THREE.Vector2();
         this.dragEnd = new THREE.Vector2();
         this.selectionBox = null;
+        this.controlsEnabled = true;
+
+        // Debug settings
+        this.debugMode = {
+            fastConstruction: false,
+            speedMultiplier: 10 // Construction will be 10x faster when enabled
+        };
 
         // Raycaster for picking objects
         this.raycaster = new THREE.Raycaster();
@@ -75,6 +82,36 @@ export class InputManager {
     }
 
     /**
+     * Clear all UI elements and deselect entities
+     */
+    clearSelectionAndUI() {
+        // Deselect all entities
+        this.game.selectEntity(null);
+        this.game.uiManager.updateSelection(null);
+
+        // Hide all production buttons
+        const unitButtons = document.querySelectorAll('.unit-button');
+        unitButtons.forEach(button => {
+            button.style.display = 'none';
+        });
+
+        const buildingButtons = document.querySelectorAll('.building-button');
+        buildingButtons.forEach(button => {
+            button.style.display = 'none';
+        });
+
+        // Hide action buttons
+        if (this.game.uiManager.actionButtons) {
+            this.game.uiManager.actionButtons.style.display = 'none';
+        }
+
+        // Reset status display
+        if (this.game.uiManager.statusDisplay) {
+            this.game.uiManager.statusDisplay.textContent = 'Ready';
+        }
+    }
+
+    /**
      * Handle mouse down event
      * @param {MouseEvent} event - Mouse event
      */
@@ -91,6 +128,10 @@ export class InputManager {
         this.isMouseDown = true;
         this.isDragging = false;
 
+        // Disable camera controls during selection
+        this.controlsEnabled = false;
+        this.game.controls.enabled = false;
+
         // Record start position
         this.dragStart.x = event.clientX;
         this.dragStart.y = event.clientY;
@@ -105,8 +146,12 @@ export class InputManager {
             if (entity && entity.player === this.game.currentPlayer) {
                 this.game.selectEntity(entity);
             } else {
-                this.game.selectEntity(null);
+                // Clicked on enemy or non-entity object, deselect
+                this.clearSelectionAndUI();
             }
+        } else {
+            // Clicked on empty terrain, deselect
+            this.clearSelectionAndUI();
         }
     }
 
@@ -145,6 +190,10 @@ export class InputManager {
             this.isMouseDown = false;
             this.isDragging = false;
             this.selectionBox.visible = false;
+
+            // Re-enable camera controls
+            this.controlsEnabled = true;
+            this.game.controls.enabled = true;
         }
     }
 
@@ -200,8 +249,8 @@ export class InputManager {
         // Handle keyboard shortcuts
         switch (event.key) {
             case 'Escape':
-                // Deselect everything
-                this.game.selectEntity(null);
+                // Deselect everything and clear UI
+                this.clearSelectionAndUI();
                 break;
 
             case 'Delete':
@@ -213,7 +262,22 @@ export class InputManager {
                         }
                     }
                     this.game.selectedEntities = [];
+                    this.game.uiManager.updateSelection(null);
                 }
+                break;
+
+            case 'F':
+            case 'f':
+                // Toggle fast construction mode
+                this.debugMode.fastConstruction = !this.debugMode.fastConstruction;
+                const status = this.debugMode.fastConstruction ? 'ENABLED' : 'DISABLED';
+                const multiplier = this.debugMode.fastConstruction ? `(${this.debugMode.speedMultiplier}x)` : '';
+                this.game.uiManager.statusDisplay.textContent = `Fast construction mode ${status} ${multiplier}`;
+
+                // Flash the status message to make it more noticeable
+                this.game.uiManager.flashStatusMessage();
+
+                console.log(`Fast construction mode ${status} - Speed multiplier: ${this.debugMode.speedMultiplier}x`);
                 break;
 
             // Add more shortcuts as needed

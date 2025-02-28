@@ -29,6 +29,8 @@ export class Unit {
         this.isMoving = false;
         this.isAttacking = false;
         this.isHarvesting = false;
+        this.canDeploy = this.unitData.canDeploy || false;
+        this.deployedBuilding = this.unitData.deployedBuilding || null;
 
         // Movement properties
         this.targetPosition = null;
@@ -504,6 +506,43 @@ export class Unit {
         } else {
             this.isHarvesting = false;
         }
+    }
+
+    /**
+     * Deploy the unit (for MCV)
+     * @returns {boolean} True if deployment was successful
+     */
+    deploy() {
+        if (!this.canDeploy || !this.deployedBuilding) {
+            return false;
+        }
+
+        // Check if the current position is valid for building
+        const isValid = this.game.buildingManager.isValidBuildLocation(
+            this.deployedBuilding,
+            this.position,
+            this.player
+        );
+
+        if (!isValid) {
+            console.log('Cannot deploy here - invalid location');
+            return false;
+        }
+
+        // Create the building
+        const building = this.game.buildingManager.createBuilding(
+            this.deployedBuilding,
+            this.position,
+            this.player
+        );
+
+        if (building) {
+            // Remove this unit
+            this.game.unitManager.removeUnit(this);
+            return true;
+        }
+
+        return false;
     }
 
     /**
