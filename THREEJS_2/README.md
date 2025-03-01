@@ -28,6 +28,12 @@ This is a minimal Three.js recreation of the classic Command & Conquer: Red Aler
 npm install
 ```
 
+### Using Nix
+
+1. Clone this repository
+2. `cd THREEJS_2/`
+3. `nix develop`
+
 ## Running the Project
 
 Start the development server:
