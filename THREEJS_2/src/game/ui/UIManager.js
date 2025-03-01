@@ -62,6 +62,9 @@ export class UIManager {
 
         // Set up building button handlers
         this.setupBuildingButtons();
+        
+        // Set up unit production button handlers
+        this.setupUIListeners();
     }
 
     /**
@@ -385,8 +388,6 @@ export class UIManager {
             else if (entity.buildOptions && entity.buildOptions.length > 0) {
                 this.statusDisplay.textContent = infoText;
 
-                console.log("Building has build options:", entity.buildOptions);
-
                 // Show relevant build buttons
                 entity.buildOptions.forEach(option => {
                     // Check if it's a unit or building option
@@ -564,6 +565,73 @@ export class UIManager {
         // Remove event listeners, etc.
         if (this.minimapDisplay && this.minimapDisplay.firstChild) {
             this.minimapDisplay.firstChild.removeEventListener('click', this.onMinimapClick);
+        }
+    }
+
+    /**
+     * Set up UI event listeners
+     */
+    setupUIListeners() {
+        // Unit production buttons
+        const unitButtons = document.querySelectorAll('.unit-button');
+        unitButtons.forEach(button => {
+            button.addEventListener('click', (event) => {
+                const unitType = button.dataset.unit;
+                this.handleUnitProduction(unitType);
+            });
+        });
+    }
+
+    /**
+     * Handle unit production request
+     * @param {string} unitType - Type of unit to produce
+     */
+    handleUnitProduction(unitType) {
+        if (!this.selectedEntity) return;
+
+        // Check if the selected building can produce this unit
+        if (!this.selectedEntity.buildOptions || !this.selectedEntity.buildOptions.includes(unitType)) {
+            this.statusDisplay.textContent = `This building cannot produce ${unitType}`;
+            return;
+        }
+
+        // Check if player has enough credits
+        const unitData = this.game.unitManager.unitTypes[unitType];
+        if (!unitData) {
+            console.error(`Unknown unit type: ${unitType}`);
+            return;
+        }
+
+        const cost = unitData.cost;
+        if (this.game.currentPlayer.credits < cost) {
+            this.statusDisplay.textContent = `Not enough credits to build ${unitData.name}`;
+            return;
+        }
+
+        // Disable the button temporarily to prevent multiple clicks
+        const button = document.querySelector(`.unit-button[data-unit="${unitType}"]`);
+        if (button) {
+            button.disabled = true;
+            button.style.opacity = '0.5';
+
+            // Re-enable after a short delay
+            setTimeout(() => {
+                button.disabled = false;
+                button.style.opacity = '1';
+            }, 2000);
+        }
+
+        // Start production
+        const success = this.selectedEntity.produceItem(unitType);
+        
+        if (success) {
+            // Update status with success message
+            this.statusDisplay.textContent = `Building ${unitData.name}`;
+            
+            // Flash the status message to make it more noticeable
+            this.flashStatusMessage();
+        } else {
+            this.statusDisplay.textContent = `Cannot build ${unitData.name} - Production failed`;
         }
     }
 } 

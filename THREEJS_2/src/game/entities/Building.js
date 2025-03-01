@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import * as BufferGeometryUtils from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 
 /**
  * Represents a building in the game
@@ -53,12 +54,36 @@ export class Building {
      * Create the building's 3D mesh
      */
     createMesh() {
-        // Create a simple box geometry for now
-        const geometry = new THREE.BoxGeometry(
-            this.buildingData.width,
-            this.buildingData.height,
-            this.buildingData.depth
-        );
+        // Create a geometry based on building type
+        let geometry;
+        
+        switch (this.type) {
+            case 'construction_yard':
+                geometry = this.createConstructionYardMesh();
+                break;
+            case 'power_plant':
+                geometry = this.createPowerPlantMesh();
+                break;
+            case 'barracks':
+                geometry = this.createBarracksMesh();
+                break;
+            case 'refinery':
+                geometry = this.createRefineryMesh();
+                break;
+            case 'war_factory':
+                geometry = this.createWarFactoryMesh();
+                break;
+            case 'defensive_turret':
+                geometry = this.createDefensiveTurretMesh();
+                break;
+            default:
+                // Fallback to simple box geometry
+                geometry = new THREE.BoxGeometry(
+                    this.buildingData.width,
+                    this.buildingData.height,
+                    this.buildingData.depth
+                );
+        }
 
         // Use the player's color
         const material = new THREE.MeshStandardMaterial({
@@ -71,7 +96,7 @@ export class Building {
         this.mesh.castShadow = true;
         this.mesh.receiveShadow = true;
         this.mesh.position.copy(this.position);
-        this.mesh.position.y = this.buildingData.height / 2;
+        this.mesh.position.y = this.buildingData.height / 2 + 0.1; // Raise slightly above terrain
         this.mesh.name = `building_${this.type}_${this.player.id}`;
 
         // Add custom properties
@@ -92,29 +117,374 @@ export class Building {
     }
 
     /**
+     * Create Construction Yard mesh
+     * @returns {THREE.BufferGeometry} The geometry for the construction yard
+     */
+    createConstructionYardMesh() {
+        const width = this.buildingData.width;
+        const height = this.buildingData.height;
+        const depth = this.buildingData.depth;
+        
+        // Create a group to hold all the parts
+        const group = new THREE.Group();
+        
+        // Base platform
+        const baseGeometry = new THREE.BoxGeometry(width, height * 0.3, depth);
+        const baseMesh = new THREE.Mesh(baseGeometry);
+        baseMesh.position.y = -height * 0.35;
+        group.add(baseMesh);
+        
+        // Main structure
+        const mainGeometry = new THREE.BoxGeometry(width * 0.8, height * 0.5, depth * 0.8);
+        const mainMesh = new THREE.Mesh(mainGeometry);
+        mainMesh.position.y = height * 0.1;
+        group.add(mainMesh);
+        
+        // Crane arm
+        const craneBaseGeometry = new THREE.BoxGeometry(width * 0.2, height * 0.7, width * 0.2);
+        const craneBaseMesh = new THREE.Mesh(craneBaseGeometry);
+        craneBaseMesh.position.set(width * 0.3, height * 0.2, 0);
+        group.add(craneBaseMesh);
+        
+        const craneArmGeometry = new THREE.BoxGeometry(width * 0.1, width * 0.1, depth * 0.6);
+        const craneArmMesh = new THREE.Mesh(craneArmGeometry);
+        craneArmMesh.position.set(width * 0.3, height * 0.6, depth * 0.2);
+        group.add(craneArmMesh);
+        
+        // Convert the group to a buffer geometry
+        const bufferGeometry = new THREE.BufferGeometry();
+        const meshes = [];
+        
+        group.traverse((child) => {
+            if (child.isMesh) {
+                child.updateMatrix();
+                const childGeometry = child.geometry.clone();
+                childGeometry.applyMatrix4(child.matrix);
+                meshes.push(childGeometry);
+            }
+        });
+        
+        // Merge all geometries
+        const mergedGeometry = BufferGeometryUtils.mergeBufferGeometries(meshes);
+        return mergedGeometry || baseGeometry; // Fallback if merge fails
+    }
+
+    /**
+     * Create Power Plant mesh
+     * @returns {THREE.BufferGeometry} The geometry for the power plant
+     */
+    createPowerPlantMesh() {
+        const width = this.buildingData.width;
+        const height = this.buildingData.height;
+        const depth = this.buildingData.depth;
+        
+        // Create a composite geometry for the power plant
+        const group = new THREE.Group();
+        
+        // Base
+        const baseGeometry = new THREE.BoxGeometry(width, height * 0.3, depth);
+        const baseMesh = new THREE.Mesh(baseGeometry);
+        baseMesh.position.y = -height * 0.35;
+        group.add(baseMesh);
+        
+        // Main building
+        const mainGeometry = new THREE.BoxGeometry(width * 0.8, height * 0.6, depth * 0.8);
+        const mainMesh = new THREE.Mesh(mainGeometry);
+        mainMesh.position.y = height * 0.15;
+        group.add(mainMesh);
+        
+        // Cooling towers (cylinders)
+        const tower1Geometry = new THREE.CylinderGeometry(width * 0.2, width * 0.25, height * 0.8, 16);
+        const tower1Mesh = new THREE.Mesh(tower1Geometry);
+        tower1Mesh.position.set(width * 0.25, height * 0.4, depth * 0.25);
+        group.add(tower1Mesh);
+        
+        const tower2Geometry = new THREE.CylinderGeometry(width * 0.2, width * 0.25, height * 0.8, 16);
+        const tower2Mesh = new THREE.Mesh(tower2Geometry);
+        tower2Mesh.position.set(-width * 0.25, height * 0.4, -depth * 0.25);
+        group.add(tower2Mesh);
+        
+        // Convert the group to a buffer geometry
+        const bufferGeometry = new THREE.BufferGeometry();
+        const meshes = [];
+        
+        group.traverse((child) => {
+            if (child.isMesh) {
+                child.updateMatrix();
+                const childGeometry = child.geometry.clone();
+                childGeometry.applyMatrix4(child.matrix);
+                meshes.push(childGeometry);
+            }
+        });
+        
+        // Merge all geometries
+        const mergedGeometry = BufferGeometryUtils.mergeBufferGeometries(meshes);
+        return mergedGeometry || baseGeometry; // Fallback if merge fails
+    }
+
+    /**
+     * Create Barracks mesh
+     * @returns {THREE.BufferGeometry} The geometry for the barracks
+     */
+    createBarracksMesh() {
+        const width = this.buildingData.width;
+        const height = this.buildingData.height;
+        const depth = this.buildingData.depth;
+        
+        // Create a composite geometry for the barracks
+        const group = new THREE.Group();
+        
+        // Base platform
+        const baseGeometry = new THREE.BoxGeometry(width, height * 0.1, depth);
+        const baseMesh = new THREE.Mesh(baseGeometry);
+        baseMesh.position.y = -height * 0.45;
+        group.add(baseMesh);
+        
+        // Main building
+        const mainGeometry = new THREE.BoxGeometry(width, height * 0.8, depth);
+        const mainMesh = new THREE.Mesh(mainGeometry);
+        mainMesh.position.y = 0;
+        group.add(mainMesh);
+        
+        // Roof (sloped)
+        const roofGeometry = new THREE.BoxGeometry(width * 1.1, height * 0.2, depth * 1.1);
+        const roofMesh = new THREE.Mesh(roofGeometry);
+        roofMesh.position.y = height * 0.5;
+        group.add(roofMesh);
+        
+        // Entrance
+        const entranceGeometry = new THREE.BoxGeometry(width * 0.3, height * 0.4, depth * 0.1);
+        const entranceMesh = new THREE.Mesh(entranceGeometry);
+        entranceMesh.position.set(0, -height * 0.2, depth * 0.55);
+        group.add(entranceMesh);
+        
+        // Windows
+        const window1Geometry = new THREE.BoxGeometry(width * 0.1, height * 0.2, depth * 0.1);
+        const window1Mesh = new THREE.Mesh(window1Geometry);
+        window1Mesh.position.set(width * 0.3, 0, depth * 0.45);
+        group.add(window1Mesh);
+        
+        const window2Geometry = new THREE.BoxGeometry(width * 0.1, height * 0.2, depth * 0.1);
+        const window2Mesh = new THREE.Mesh(window2Geometry);
+        window2Mesh.position.set(-width * 0.3, 0, depth * 0.45);
+        group.add(window2Mesh);
+        
+        // Convert the group to a buffer geometry
+        const bufferGeometry = new THREE.BufferGeometry();
+        const meshes = [];
+        
+        group.traverse((child) => {
+            if (child.isMesh) {
+                child.updateMatrix();
+                const childGeometry = child.geometry.clone();
+                childGeometry.applyMatrix4(child.matrix);
+                meshes.push(childGeometry);
+            }
+        });
+        
+        // Merge all geometries
+        const mergedGeometry = BufferGeometryUtils.mergeBufferGeometries(meshes);
+        return mergedGeometry || mainGeometry; // Fallback if merge fails
+    }
+
+    /**
+     * Create Refinery mesh
+     * @returns {THREE.BufferGeometry} The geometry for the refinery
+     */
+    createRefineryMesh() {
+        const width = this.buildingData.width;
+        const height = this.buildingData.height;
+        const depth = this.buildingData.depth;
+        
+        // Create a composite geometry for the refinery
+        const group = new THREE.Group();
+        
+        // Base platform
+        const baseGeometry = new THREE.BoxGeometry(width, height * 0.1, depth);
+        const baseMesh = new THREE.Mesh(baseGeometry);
+        baseMesh.position.y = -height * 0.45;
+        group.add(baseMesh);
+        
+        // Main building
+        const mainGeometry = new THREE.BoxGeometry(width * 0.8, height * 0.7, depth * 0.8);
+        const mainMesh = new THREE.Mesh(mainGeometry);
+        mainMesh.position.y = -height * 0.05;
+        group.add(mainMesh);
+        
+        // Silos (cylinders)
+        const silo1Geometry = new THREE.CylinderGeometry(width * 0.15, width * 0.15, height * 1.2, 16);
+        const silo1Mesh = new THREE.Mesh(silo1Geometry);
+        silo1Mesh.position.set(width * 0.3, height * 0.25, depth * 0.3);
+        group.add(silo1Mesh);
+        
+        const silo2Geometry = new THREE.CylinderGeometry(width * 0.15, width * 0.15, height * 1.2, 16);
+        const silo2Mesh = new THREE.Mesh(silo2Geometry);
+        silo2Mesh.position.set(-width * 0.3, height * 0.25, -depth * 0.3);
+        group.add(silo2Mesh);
+        
+        // Processing unit
+        const processorGeometry = new THREE.BoxGeometry(width * 0.5, height * 0.4, depth * 0.5);
+        const processorMesh = new THREE.Mesh(processorGeometry);
+        processorMesh.position.set(0, height * 0.35, 0);
+        group.add(processorMesh);
+        
+        // Unloading bay
+        const bayGeometry = new THREE.BoxGeometry(width * 0.4, height * 0.2, depth * 0.6);
+        const bayMesh = new THREE.Mesh(bayGeometry);
+        bayMesh.position.set(0, -height * 0.3, -depth * 0.4);
+        group.add(bayMesh);
+        
+        // Convert the group to a buffer geometry
+        const bufferGeometry = new THREE.BufferGeometry();
+        const meshes = [];
+        
+        group.traverse((child) => {
+            if (child.isMesh) {
+                child.updateMatrix();
+                const childGeometry = child.geometry.clone();
+                childGeometry.applyMatrix4(child.matrix);
+                meshes.push(childGeometry);
+            }
+        });
+        
+        // Merge all geometries
+        const mergedGeometry = BufferGeometryUtils.mergeBufferGeometries(meshes);
+        return mergedGeometry || mainGeometry; // Fallback if merge fails
+    }
+
+    /**
+     * Create War Factory mesh
+     * @returns {THREE.BufferGeometry} The geometry for the war factory
+     */
+    createWarFactoryMesh() {
+        const width = this.buildingData.width;
+        const height = this.buildingData.height;
+        const depth = this.buildingData.depth;
+        
+        // Create a composite geometry for the war factory
+        const group = new THREE.Group();
+        
+        // Base platform
+        const baseGeometry = new THREE.BoxGeometry(width, height * 0.1, depth);
+        const baseMesh = new THREE.Mesh(baseGeometry);
+        baseMesh.position.y = -height * 0.45;
+        group.add(baseMesh);
+        
+        // Main building (factory floor)
+        const mainGeometry = new THREE.BoxGeometry(width, height * 0.6, depth);
+        const mainMesh = new THREE.Mesh(mainGeometry);
+        mainMesh.position.y = -height * 0.1;
+        group.add(mainMesh);
+        
+        // Factory roof (angled)
+        const roofGeometry = new THREE.BoxGeometry(width, height * 0.3, depth);
+        const roofMesh = new THREE.Mesh(roofGeometry);
+        roofMesh.position.y = height * 0.35;
+        group.add(roofMesh);
+        
+        // Smokestacks
+        const stack1Geometry = new THREE.CylinderGeometry(width * 0.08, width * 0.1, height * 0.6, 8);
+        const stack1Mesh = new THREE.Mesh(stack1Geometry);
+        stack1Mesh.position.set(width * 0.35, height * 0.3, depth * 0.35);
+        group.add(stack1Mesh);
+        
+        const stack2Geometry = new THREE.CylinderGeometry(width * 0.08, width * 0.1, height * 0.6, 8);
+        const stack2Mesh = new THREE.Mesh(stack2Geometry);
+        stack2Mesh.position.set(width * 0.35, height * 0.3, -depth * 0.35);
+        group.add(stack2Mesh);
+        
+        // Vehicle exit
+        const exitGeometry = new THREE.BoxGeometry(width * 0.5, height * 0.4, depth * 0.1);
+        const exitMesh = new THREE.Mesh(exitGeometry);
+        exitMesh.position.set(0, -height * 0.2, depth * 0.55);
+        group.add(exitMesh);
+        
+        // Convert the group to a buffer geometry
+        const bufferGeometry = new THREE.BufferGeometry();
+        const meshes = [];
+        
+        group.traverse((child) => {
+            if (child.isMesh) {
+                child.updateMatrix();
+                const childGeometry = child.geometry.clone();
+                childGeometry.applyMatrix4(child.matrix);
+                meshes.push(childGeometry);
+            }
+        });
+        
+        // Merge all geometries
+        const mergedGeometry = BufferGeometryUtils.mergeBufferGeometries(meshes);
+        return mergedGeometry || mainGeometry; // Fallback if merge fails
+    }
+
+    /**
+     * Create Defensive Turret mesh
+     * @returns {THREE.BufferGeometry} The geometry for the defensive turret
+     */
+    createDefensiveTurretMesh() {
+        const width = this.buildingData.width;
+        const height = this.buildingData.height;
+        const depth = this.buildingData.depth;
+        
+        // For the defensive turret, we'll create a simple base
+        // The actual turret will be created in the createTurret method
+        const baseGeometry = new THREE.CylinderGeometry(width * 0.5, width * 0.6, height * 0.5, 16);
+        
+        return baseGeometry;
+    }
+
+    /**
      * Create construction scaffolding
      */
     createScaffolding() {
         // Create a wireframe version of the building that's slightly larger
         const scaffoldingGeometry = new THREE.BoxGeometry(
-            this.buildingData.width + 0.2,
-            this.buildingData.height + 0.2,
-            this.buildingData.depth + 0.2
+            this.buildingData.width + 0.4,
+            this.buildingData.height + 0.4,
+            this.buildingData.depth + 0.4
         );
 
         const scaffoldingMaterial = new THREE.MeshBasicMaterial({
-            color: 0xffffff,
-            wireframe: true
+            color: 0x00ffff,
+            wireframe: true,
+            linewidth: 2
         });
 
         this.scaffolding = new THREE.Mesh(scaffoldingGeometry, scaffoldingMaterial);
         this.scaffolding.position.y = this.buildingData.height / 2;
+        
+        // Add entity reference to scaffolding for selection
+        this.scaffolding.userData.entity = this;
 
         // Add the scaffolding to the main mesh
         this.mesh.add(this.scaffolding);
 
-        // Hide the main mesh during construction
-        this.mesh.visible = false;
+        // Create a transparent version of the building to show its footprint
+        const ghostGeometry = new THREE.BoxGeometry(
+            this.buildingData.width,
+            this.buildingData.height,
+            this.buildingData.depth
+        );
+
+        const ghostMaterial = new THREE.MeshStandardMaterial({
+            color: this.player.getColor(),
+            transparent: true,
+            opacity: 0.3,
+            roughness: 0.7,
+            metalness: 0.3
+        });
+
+        this.ghostMesh = new THREE.Mesh(ghostGeometry, ghostMaterial);
+        this.ghostMesh.position.y = this.buildingData.height / 2;
+        
+        // Add entity reference to ghost mesh for selection
+        this.ghostMesh.userData.entity = this;
+        
+        this.mesh.add(this.ghostMesh);
+
+        // Hide only the solid mesh during construction, but show the ghost
+        this.mesh.visible = true;
+        this.mesh.material.visible = false;
     }
 
     /**
@@ -154,19 +524,19 @@ export class Building {
      * Create selection indicator
      */
     createSelectionIndicator() {
-        const size = Math.max(this.buildingData.width, this.buildingData.depth) + 0.2;
-        const geometry = new THREE.RingGeometry(size, size + 0.1, 16);
+        const size = Math.max(this.buildingData.width, this.buildingData.depth) + 0.4;
+        const geometry = new THREE.RingGeometry(size, size + 0.3, 32);
         geometry.rotateX(-Math.PI / 2); // Make it flat and horizontal
 
         const material = new THREE.MeshBasicMaterial({
             color: 0x00ff00,
             transparent: true,
-            opacity: 0.7,
+            opacity: 0.8,
             side: THREE.DoubleSide
         });
 
         this.selectionRing = new THREE.Mesh(geometry, material);
-        this.selectionRing.position.y = 0.05; // Slightly above ground
+        this.selectionRing.position.y = 0.15; // Higher above ground to avoid terrain occlusion
         this.selectionRing.visible = false;
         this.mesh.add(this.selectionRing);
     }
@@ -302,7 +672,25 @@ export class Building {
                 const unit = this.game.unitManager.createUnit(itemType, spawnPoint, this.player);
                 if (unit) {
                     console.log(`Unit ${itemType} production complete`);
+                    
+                    // Update status display
+                    if (this.game.uiManager.statusDisplay) {
+                        const unitName = this.game.unitManager.unitTypes[itemType].name;
+                        this.game.uiManager.statusDisplay.textContent = `${unitName} ready`;
+                        this.game.uiManager.flashStatusMessage();
+                    }
                 }
+            } else {
+                // If no spawn point is available, refund the cost
+                const cost = this.getItemCost(itemType);
+                this.player.addCredits(cost);
+                
+                // Update status display
+                if (this.game.uiManager.statusDisplay) {
+                    this.game.uiManager.statusDisplay.textContent = `Cannot deploy unit - no space available`;
+                }
+                
+                console.error(`No valid spawn point found for ${itemType}`);
             }
         }
 
@@ -315,56 +703,69 @@ export class Building {
      * @returns {THREE.Vector3|null} Spawn position or null if no valid position
      */
     findUnitSpawnPoint() {
-        // Try positions around the building
-        const directions = [
-            { x: 0, z: -1 }, // North
-            { x: 1, z: 0 },  // East
-            { x: 0, z: 1 },  // South
-            { x: -1, z: 0 }  // West
-        ];
-
+        console.log(`Finding spawn point for building at position: x=${this.position.x.toFixed(1)}, z=${this.position.z.toFixed(1)}`);
+        
         const buildingWidth = this.buildingData.width;
         const buildingDepth = this.buildingData.depth;
         const halfWidth = Math.floor(buildingWidth / 2);
         const halfDepth = Math.floor(buildingDepth / 2);
+        
+        // Try positions around the building with increasing distance
+        for (let distance = 1; distance <= 3; distance++) {
+            // Try each direction at current distance
+            const directions = [
+                { x: 0, z: -distance },  // North
+                { x: distance, z: 0 },   // East
+                { x: 0, z: distance },   // South
+                { x: -distance, z: 0 }   // West
+            ];
+            
+            // Try each cardinal direction
+            for (const dir of directions) {
+                const tryPos = new THREE.Vector3(
+                    this.position.x + dir.x * (halfWidth + 1),
+                    0,
+                    this.position.z + dir.z * (halfDepth + 1)
+                );
 
-        // Try each direction
-        for (const dir of directions) {
-            const tryPos = new THREE.Vector3(
-                this.position.x + dir.x * (halfWidth + 1),
-                0,
-                this.position.z + dir.z * (halfDepth + 1)
-            );
+                // Check if position is valid
+                const gridPos = this.game.mapManager.worldToGrid(tryPos);
+                console.log(`Trying position at distance ${distance}: x=${tryPos.x.toFixed(1)}, z=${tryPos.z.toFixed(1)} (grid: ${gridPos.x},${gridPos.z}) - walkable: ${this.game.mapManager.isWalkable(gridPos.x, gridPos.z)}`);
+                
+                if (this.game.mapManager.isWalkable(gridPos.x, gridPos.z)) {
+                    console.log(`Found valid spawn point at: x=${tryPos.x.toFixed(1)}, z=${tryPos.z.toFixed(1)}`);
+                    return tryPos;
+                }
+            }
+            
+            // Try diagonal positions at current distance
+            const diagonals = [
+                { x: distance, z: -distance },   // Northeast
+                { x: distance, z: distance },    // Southeast
+                { x: -distance, z: distance },   // Southwest
+                { x: -distance, z: -distance }   // Northwest
+            ];
+            
+            // Try each diagonal direction
+            for (const dir of diagonals) {
+                const tryPos = new THREE.Vector3(
+                    this.position.x + dir.x * (halfWidth + 1),
+                    0,
+                    this.position.z + dir.z * (halfDepth + 1)
+                );
 
-            // Check if position is valid
-            const gridPos = this.game.mapManager.worldToGrid(tryPos);
-            if (this.game.mapManager.isWalkable(gridPos.x, gridPos.z)) {
-                return tryPos;
+                // Check if position is valid
+                const gridPos = this.game.mapManager.worldToGrid(tryPos);
+                console.log(`Trying diagonal position at distance ${distance}: x=${tryPos.x.toFixed(1)}, z=${tryPos.z.toFixed(1)} (grid: ${gridPos.x},${gridPos.z}) - walkable: ${this.game.mapManager.isWalkable(gridPos.x, gridPos.z)}`);
+                
+                if (this.game.mapManager.isWalkable(gridPos.x, gridPos.z)) {
+                    console.log(`Found valid diagonal spawn point at: x=${tryPos.x.toFixed(1)}, z=${tryPos.z.toFixed(1)}`);
+                    return tryPos;
+                }
             }
         }
 
-        // If no direct position works, try diagonal positions
-        const diagonals = [
-            { x: 1, z: -1 },  // Northeast
-            { x: 1, z: 1 },   // Southeast
-            { x: -1, z: 1 },  // Southwest
-            { x: -1, z: -1 }  // Northwest
-        ];
-
-        for (const dir of diagonals) {
-            const tryPos = new THREE.Vector3(
-                this.position.x + dir.x * (halfWidth + 1),
-                0,
-                this.position.z + dir.z * (halfDepth + 1)
-            );
-
-            // Check if position is valid
-            const gridPos = this.game.mapManager.worldToGrid(tryPos);
-            if (this.game.mapManager.isWalkable(gridPos.x, gridPos.z)) {
-                return tryPos;
-            }
-        }
-
+        console.log(`No valid spawn point found for building at position: x=${this.position.x.toFixed(1)}, z=${this.position.z.toFixed(1)}`);
         return null;
     }
 
@@ -387,19 +788,33 @@ export class Building {
         // Update progress
         this.constructionProgress += delta * constructionRate;
 
-        // Update scaffolding scale based on progress
+        // Update scaffolding and ghost mesh based on progress
         if (this.scaffolding) {
             const progressPercent = this.constructionProgress / this.buildingData.buildTime;
 
-            // When construction is 50% complete, show the building underneath
-            if (progressPercent >= 0.5 && !this.mesh.visible) {
-                this.mesh.visible = true;
+            // When construction is 50% complete, start showing the building underneath
+            if (progressPercent >= 0.5 && !this.mesh.material.visible) {
+                this.mesh.material.visible = true;
+                
+                // Fade in the main building
+                this.mesh.material.opacity = 0;
+                this.mesh.material.transparent = true;
+            }
+            
+            // Gradually fade in the main building
+            if (progressPercent > 0.5 && this.mesh.material.visible) {
+                this.mesh.material.opacity = (progressPercent - 0.5) * 2;
             }
 
             // Fade out scaffolding as construction completes
             if (progressPercent > 0.5) {
                 this.scaffolding.material.opacity = 1 - ((progressPercent - 0.5) * 2);
                 this.scaffolding.material.transparent = true;
+            }
+            
+            // Fade out ghost mesh as construction progresses
+            if (this.ghostMesh) {
+                this.ghostMesh.material.opacity = 0.3 * (1 - progressPercent);
             }
         }
 
@@ -414,12 +829,21 @@ export class Building {
      */
     completeConstruction() {
         this.isUnderConstruction = false;
+        
+        // Show the main mesh
         this.mesh.visible = true;
+        this.mesh.material.visible = true;
 
         // Remove scaffolding
         if (this.scaffolding) {
             this.mesh.remove(this.scaffolding);
             this.scaffolding = null;
+        }
+        
+        // Remove ghost mesh
+        if (this.ghostMesh) {
+            this.mesh.remove(this.ghostMesh);
+            this.ghostMesh = null;
         }
 
         // Add to player's power

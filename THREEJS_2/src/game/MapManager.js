@@ -132,9 +132,15 @@ export class MapManager {
         );
         gridHelper.position.set(
             ((this.gridWidth * this.cellSize) / 2) - (this.cellSize / 2),
-            0.01, // Slightly above ground
+            0.1, // Higher above ground to avoid intersection with terrain
             ((this.gridHeight * this.cellSize) / 2) - (this.cellSize / 2)
         );
+        
+        // Make grid lines more visible
+        const material = gridHelper.material;
+        material.opacity = 0.8;
+        material.transparent = true;
+        
         gridHelper.name = 'grid';
         this.game.scene.add(gridHelper);
         this.grid = gridHelper;
@@ -193,18 +199,18 @@ export class MapManager {
 
         if (type === 'ore') {
             // Create ore deposit geometry
-            geometry = new THREE.CylinderGeometry(0.3, 0.5, 0.2, 6);
+            geometry = new THREE.CylinderGeometry(0.3, 0.5, 0.3, 6);
             material = this.terrainMaterials.ore;
         } else {
             // Default resource visual
-            geometry = new THREE.BoxGeometry(0.5, 0.2, 0.5);
+            geometry = new THREE.BoxGeometry(0.5, 0.3, 0.5);
             material = this.terrainMaterials.rock;
         }
 
         const mesh = new THREE.Mesh(geometry, material);
         mesh.position.set(
             x * this.cellSize,
-            0.1, // Slightly above ground
+            0.25, // Higher above ground to avoid terrain intersection
             z * this.cellSize
         );
         mesh.castShadow = true;
@@ -233,18 +239,136 @@ export class MapManager {
      * @param {number} size - Size of the water body
      */
     addWater(x, z, size) {
-        // Create water geometry
-        const geometry = new THREE.PlaneGeometry(size * this.cellSize, size * this.cellSize);
-        geometry.rotateX(-Math.PI / 2);
-
-        const water = new THREE.Mesh(geometry, this.terrainMaterials.water);
-        water.position.set(
+        // Create water group to hold all water-related meshes
+        const waterGroup = new THREE.Group();
+        waterGroup.name = 'water';
+        
+        // Create water surface geometry
+        const surfaceGeometry = new THREE.PlaneGeometry(size * this.cellSize, size * this.cellSize);
+        surfaceGeometry.rotateX(-Math.PI / 2);
+        
+        // Create water surface material with transparency
+        const waterSurfaceMaterial = new THREE.MeshStandardMaterial({
+            color: 0x3a85bf,
+            roughness: 0.1,
+            metalness: 0.8,
+            transparent: true,
+            opacity: 0.8
+        });
+        
+        // Add some gentle waves to the water surface
+        const vertices = surfaceGeometry.attributes.position.array;
+        for (let i = 0; i < vertices.length; i += 3) {
+            // Skip edges to keep them flat for better blending
+            const xIndex = Math.floor((i / 3) % (size + 1));
+            const zIndex = Math.floor((i / 3) / (size + 1));
+            
+            if (xIndex > 0 && xIndex < size && zIndex > 0 && zIndex < size) {
+                // Add subtle height variation for wave effect
+                vertices[i + 1] = Math.sin(xIndex * 0.5) * 0.05 + Math.cos(zIndex * 0.5) * 0.05;
+            }
+        }
+        
+        // Update normals after modifying vertices
+        surfaceGeometry.computeVertexNormals();
+        
+        const waterSurface = new THREE.Mesh(surfaceGeometry, waterSurfaceMaterial);
+        waterSurface.position.y = 0.15; // Slightly above ground
+        waterSurface.receiveShadow = true;
+        waterGroup.add(waterSurface);
+        
+        // Create water bottom (depth)
+        const bottomGeometry = new THREE.PlaneGeometry(size * this.cellSize, size * this.cellSize);
+        bottomGeometry.rotateX(-Math.PI / 2);
+        
+        // Darker blue for the bottom
+        const waterBottomMaterial = new THREE.MeshStandardMaterial({
+            color: 0x1a4570, // Darker blue
+            roughness: 0.5,
+            metalness: 0.3
+        });
+        
+        // Add some variation to the bottom for a more natural look
+        const bottomVertices = bottomGeometry.attributes.position.array;
+        for (let i = 0; i < bottomVertices.length; i += 3) {
+            // Create a depression in the middle that gets deeper
+            const xIndex = Math.floor((i / 3) % (size + 1));
+            const zIndex = Math.floor((i / 3) / (size + 1));
+            
+            // Calculate distance from center
+            const centerX = size / 2;
+            const centerZ = size / 2;
+            const distFromCenter = Math.sqrt(
+                Math.pow(xIndex - centerX, 2) + 
+                Math.pow(zIndex - centerZ, 2)
+            );
+            
+            // Deeper in the middle, shallower at edges
+            const maxDepth = 0.8; // Maximum depth
+            const depthFactor = Math.max(0, 1 - (distFromCenter / (size / 2)));
+            bottomVertices[i + 1] = -maxDepth * Math.pow(depthFactor, 2);
+        }
+        
+        // Update normals after modifying vertices
+        bottomGeometry.computeVertexNormals();
+        
+        const waterBottom = new THREE.Mesh(bottomGeometry, waterBottomMaterial);
+        waterBottom.position.y = 0.1; // Slightly above ground but below surface
+        waterBottom.receiveShadow = true;
+        waterGroup.add(waterBottom);
+        
+        // Create water sides to give depth appearance
+        const waterDepth = 0.8; // Maximum water depth
+        const sidesMaterial = new THREE.MeshStandardMaterial({
+            color: 0x2a6590, // Medium blue for sides
+            roughness: 0.5,
+            metalness: 0.5
+        });
+        
+        // Create sides for the water body (north, east, south, west)
+        const sideWidth = size * this.cellSize;
+        const sideHeight = waterDepth;
+        
+        // North side
+        const northGeometry = new THREE.PlaneGeometry(sideWidth, sideHeight);
+        const northSide = new THREE.Mesh(northGeometry, sidesMaterial);
+        northSide.position.set(0, sideHeight/2, -sideWidth/2);
+        northSide.rotation.y = Math.PI;
+        waterGroup.add(northSide);
+        
+        // South side
+        const southGeometry = new THREE.PlaneGeometry(sideWidth, sideHeight);
+        const southSide = new THREE.Mesh(southGeometry, sidesMaterial);
+        southSide.position.set(0, sideHeight/2, sideWidth/2);
+        waterGroup.add(southSide);
+        
+        // East side
+        const eastGeometry = new THREE.PlaneGeometry(sideWidth, sideHeight);
+        const eastSide = new THREE.Mesh(eastGeometry, sidesMaterial);
+        eastSide.position.set(sideWidth/2, sideHeight/2, 0);
+        eastSide.rotation.y = -Math.PI/2;
+        waterGroup.add(eastSide);
+        
+        // West side
+        const westGeometry = new THREE.PlaneGeometry(sideWidth, sideHeight);
+        const westSide = new THREE.Mesh(westGeometry, sidesMaterial);
+        westSide.position.set(-sideWidth/2, sideHeight/2, 0);
+        westSide.rotation.y = Math.PI/2;
+        waterGroup.add(westSide);
+        
+        // Position the entire water group
+        waterGroup.position.set(
             x * this.cellSize,
-            0.05, // Slightly above ground
+            0, // At ground level
             z * this.cellSize
         );
-        water.name = 'water';
-        this.game.scene.add(water);
+        
+        this.game.scene.add(waterGroup);
+        
+        // Add animation for water
+        this.waterGroup = waterGroup;
+        this.waterSurface = waterSurface;
+        this.waterAnimTime = 0;
 
         // Make cells not buildable or walkable
         for (let dx = -size / 2; dx < size / 2; dx++) {
@@ -370,5 +494,40 @@ export class MapManager {
         }
 
         return { type: resource.type, amount: extractedAmount };
+    }
+
+    /**
+     * Update the map (animations, etc.)
+     * @param {number} delta - Time delta
+     */
+    update(delta) {
+        // Animate water if it exists
+        if (this.waterSurface) {
+            this.waterAnimTime += delta;
+            
+            // Update water surface vertices for wave animation
+            const geometry = this.waterSurface.geometry;
+            const vertices = geometry.attributes.position.array;
+            
+            for (let i = 0; i < vertices.length; i += 3) {
+                const x = Math.floor((i / 3) % (geometry.parameters.widthSegments + 1));
+                const z = Math.floor((i / 3) / (geometry.parameters.widthSegments + 1));
+                
+                // Skip edges to keep them flat for better blending
+                if (x > 0 && x < geometry.parameters.widthSegments && 
+                    z > 0 && z < geometry.parameters.heightSegments) {
+                    // Create gentle wave motion
+                    vertices[i + 1] = 
+                        Math.sin(x * 0.5 + this.waterAnimTime * 1.5) * 0.05 + 
+                        Math.cos(z * 0.5 + this.waterAnimTime) * 0.05;
+                }
+            }
+            
+            // Mark vertices for update
+            geometry.attributes.position.needsUpdate = true;
+            
+            // Update normals for proper lighting
+            geometry.computeVertexNormals();
+        }
     }
 } 

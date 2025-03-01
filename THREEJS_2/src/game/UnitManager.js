@@ -81,6 +81,54 @@ export class UnitManager {
                 damage: 15,
                 reloadTime: 1.5,
                 cargoCapacity: 5
+            },
+            // Add infantry units
+            soldier: {
+                name: 'Rifle Infantry',
+                model: 'box',
+                width: 0.4,
+                height: 0.6,
+                depth: 0.4,
+                health: 100,
+                speed: 0.7,
+                turnSpeed: 3.0,
+                cost: 100,
+                buildTime: 5,
+                canAttack: true,
+                attackRange: 4,
+                damage: 10,
+                reloadTime: 1.0
+            },
+            engineer: {
+                name: 'Engineer',
+                model: 'box',
+                width: 0.4,
+                height: 0.6,
+                depth: 0.4,
+                health: 75,
+                speed: 0.6,
+                turnSpeed: 3.0,
+                cost: 500,
+                buildTime: 8,
+                canAttack: false,
+                canCapture: true,
+                captureRange: 1
+            },
+            dog: {
+                name: 'Attack Dog',
+                model: 'box',
+                width: 0.3,
+                height: 0.3,
+                depth: 0.5,
+                health: 80,
+                speed: 1.2,
+                turnSpeed: 4.0,
+                cost: 200,
+                buildTime: 4,
+                canAttack: true,
+                attackRange: 1.5,
+                damage: 25,
+                reloadTime: 0.8
             }
         };
     }
@@ -93,6 +141,8 @@ export class UnitManager {
      * @returns {Object} The created unit
      */
     createUnit(type, position, player) {
+        console.log(`Creating unit of type: ${type} at position: x=${position.x.toFixed(1)}, z=${position.z.toFixed(1)}`);
+        
         const unitType = this.unitTypes[type];
         if (!unitType) {
             console.error(`Unknown unit type: ${type}`);
@@ -101,6 +151,7 @@ export class UnitManager {
 
         // Create the unit
         const unit = new Unit(this.game, type, position, player);
+        console.log(`Unit created: ${type} with mesh: ${unit.mesh ? 'yes' : 'no'}`);
 
         // Register unit
         this.units.push(unit);

@@ -125,8 +125,10 @@ export class Game {
 
         // Update managers
         this.controls.update();
+        this.inputManager.update(delta);
         this.unitManager.update(delta);
         this.buildingManager.update(delta);
+        this.mapManager.update(delta);
         this.uiManager.update(delta);
 
         // Render the scene
